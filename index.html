@@ -119,6 +119,14 @@
 
   .view { display: none; }
   .view.active { display: block; }
+    .detail-image { margin: 0 16px 16px; border-radius: 14px; overflow: hidden; }
+  .detail-image img { width: 100%; display: block; }
+  .detail-attachments { margin: 12px 16px 0; display: flex; flex-direction: column; gap: 8px; }
+  .attachment-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 13px; border-radius: 12px; background: var(--card); border: 1px solid var(--border);
+    font-size: 13.5px; font-weight: 700; color: var(--accent); text-decoration: none; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -176,16 +184,19 @@
   </div>
 
   <!-- ================= 詳細画面 ================= -->
-  <div class="view" id="view-detail">
+   <div class="view" id="view-detail">
     <div class="detail-head">
       <span class="detail-badge" id="detailBadge"></span>
       <div class="detail-title" id="detailTitle"></div>
       <div class="detail-date" id="detailDate"></div>
     </div>
+    <div class="detail-image" id="detailImage" style="display:none;">
+      <img id="detailImageImg" src="" alt="">
+    </div>
     <div class="detail-body" id="detailBody"></div>
+    <div class="detail-attachments" id="detailAttachments"></div>
     <div class="related-btn" onclick="showView('list')">一覧に戻る</div>
   </div>
-</div>
 
 <script>
   // ここをGASのWebアプリURL(/execで終わるもの)に置き換えてください
@@ -366,6 +377,29 @@
     document.getElementById('detailTitle').textContent = m.title;
     document.getElementById('detailDate').textContent = m.updatedAt ? '更新日: ' + m.updatedAt : '';
     document.getElementById('detailBody').textContent = m.body;
+
+    // 画像
+    const imgWrap = document.getElementById('detailImage');
+    const imgEl = document.getElementById('detailImageImg');
+    if (m.imageUrl) {
+      imgEl.src = m.imageUrl;
+      imgWrap.style.display = 'block';
+    } else {
+      imgWrap.style.display = 'none';
+      imgEl.src = '';
+    }
+
+    // PDF・動画（あるものだけボタンを表示。動画はDriveの再生画面が別タブで開く）
+    const attachEl = document.getElementById('detailAttachments');
+    let attachHtml = '';
+    if (m.pdfUrl) {
+      attachHtml += '<a class="attachment-btn" href="' + m.pdfUrl + '" target="_blank" rel="noopener">📄 PDFを見る</a>';
+    }
+    if (m.videoUrl) {
+      attachHtml += '<a class="attachment-btn" href="' + m.videoUrl + '" target="_blank" rel="noopener">🎬 動画を見る</a>';
+    }
+    attachEl.innerHTML = attachHtml;
+
     showView('detail');
   }
 
