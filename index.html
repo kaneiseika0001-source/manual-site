@@ -128,6 +128,10 @@
     padding: 13px; border-radius: 12px; background: var(--card); border: 1px solid var(--border);
     font-size: 13.5px; font-weight: 700; color: var(--accent); text-decoration: none; cursor: pointer;
   }
+    .badge-new {
+    background: #e6483c; color: #fff; font-size: 10px; font-weight: 800;
+    padding: 3px 7px; border-radius: 8px; flex-shrink: 0; letter-spacing: .5px;
+  }
 </style>
 </head>
 <body>
@@ -162,6 +166,11 @@
         </div>
       </div>
 
+            <div class="section" id="latestSection" style="display:none;">
+        <div class="section-head"><h3>🆕 最新</h3></div>
+        <div id="latestList"></div>
+      </div>
+      
       <div class="section">
         <div class="section-head"><h3>カテゴリ</h3></div>
         <div class="cat-list" id="categoryList"><div class="empty">読み込み中です…</div></div>
@@ -201,7 +210,7 @@
   // ここをGASのWebアプリURL(/execで終わるもの)に置き換えてください
   const API_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
 
-  const RECENT_KEY = 'manual_recent_v1';
+   const RECENT_KEY = 'manual_recent_v1';
   const VIEW_COUNT_KEY = 'manual_view_count_v1';
   const MAX_FREQUENT = 6;
 
@@ -288,11 +297,24 @@
         '<p class="t">' + escapeHtml(m.title) + '</p>' +
         '<p class="c">' + escapeHtml(m.category) + (m.updatedAt ? ' ・ ' + m.updatedAt : '') + '</p>' +
       '</div>' +
+            (m.isNew ? '<span class="badge-new">NEW</span>' : '') +
       '<span class="chev">›</span>' +
     '</div>';
   }
 
+  const LATEST_COUNT = 3; // 「最新」欄に出す件数
+
+  function renderLatest() {
+    const latest = manuals
+      .filter(m => m.updatedAtMs > 0)
+      .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
+      .slice(0, LATEST_COUNT);
+    document.getElementById('latestList').innerHTML = latest.map(cardHtml).join('');
+    document.getElementById('latestSection').style.display = latest.length ? 'block' : 'none';
+  }
+
   function renderCategoryList() {
+    renderLatest();
     const seen = [];
     manuals.forEach(m => { if (!seen.includes(m.category)) seen.push(m.category); });
 
