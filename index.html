@@ -320,6 +320,13 @@
     const seen = [];
     manuals.forEach(m => { if (!seen.includes(m.category)) seen.push(m.category); });
 
+    // マニュアルがまだ無いカテゴリも、一覧に表示する
+    Object.keys(CATEGORY_META).forEach(cat => { if (!seen.includes(cat)) seen.push(cat); });
+
+    // 「その他」は常に一番下にする
+    const otherIdx = seen.indexOf('その他');
+    if (otherIdx >= 0) { seen.splice(otherIdx, 1); seen.push('その他'); }
+
     document.getElementById('categoryList').innerHTML = seen.map(cat => {
       const meta = getMeta(cat);
       const desc = CATEGORY_DESC[cat] || '関連するマニュアル';
