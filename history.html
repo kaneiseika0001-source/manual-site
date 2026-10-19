@@ -1,113 +1,96 @@
-/**
- * 申請履歴API(LIFFページから呼ばれる)
- * 労働時間申請 と 勤怠連絡 の両方を、本人の分だけまとめて新しい順に返す。
- * デプロイ: ウェブアプリ / 実行ユーザー=自分 / アクセス=全員
- * 既存のGASと関数名がぶつからないよう、新しいGASプロジェクトに貼るのがおすすめ。
- */
-const CFG = {
-  LINE_LOGIN_CHANNEL_ID: '2011627592',
-  // スプレッドシートのID(URLの /d/ と /edit の間の文字列)
-  LABOR_SS_ID: '1jUa8P2rbjxtnWlXT53uZNOgeS3mku7rdGIeX0zARzbw',
-  KINTAI_SS_ID: '14pvCYYuDeYZqeRSD9a98OB9I-h1t3ZQtVW7sFRQy9dA',
-  ROSTER_SHEET: 'スタッフ名簿',
-  ROSTER_NAME_HEADER: '名前',
-  ROSTER_LINEID_HEADER: 'LINE userId',
-  MAX_ITEMS: 30
-};
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>申請履歴</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1b1f24; --sub:#69707a; --line:#e6e8ec;
+          --ok-bg:#d9f2e3; --ok:#12713a; --wait-bg:#fff0cc; --wait:#8a5a00; --off-bg:#e9ebef; --off:#3b424c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121417; --card:#1b1f24; --text:#eceef1; --sub:#98a0ab; --line:#2a2f36;
+            --ok-bg:#16402a; --ok:#7fe0a6; --wait-bg:#47350a; --wait:#f5cd6b; --off-bg:#2a2f36; --off:#c4cad2; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif; line-height:1.6; }
+  main { max-width:560px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  .note { color:var(--sub); font-size:13px; margin:0 0 16px; }
+  .list { background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  .item { padding:14px 16px; border-top:1px solid var(--line); }
+  .item:first-child { border-top:0; }
+  .row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .title { font-weight:700; }
+  .meta { color:var(--sub); font-size:14px; }
+  .detail { color:var(--sub); font-size:13px; white-space:pre-line; margin-top:4px; }
+  .badge { flex:none; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px;
+           background:var(--off-bg); color:var(--off); }
+  .badge.ok { background:var(--ok-bg); color:var(--ok); }
+  .badge.wait { background:var(--wait-bg); color:var(--wait); }
+  .msg { padding:24px 16px; text-align:center; color:var(--sub); }
+</style>
+</head>
+<body>
+<main>
+  <h1>申請履歴</h1>
+  <p class="note" id="who">自分の申請のみ表示</p>
+  <div class="list" id="list"><div class="msg">読み込み中…</div></div>
+</main>
 
-// 履歴の取得元。列番号は A=1。
-const SOURCES = [
-  {
-    kind: '労働時間申請', ssId: () => CFG.LABOR_SS_ID, sheet: '労働時間申請', firstRow: 3, cols: 13,
-    c: { status: 1, ts: 2, name: 3, date: 4, type: 5, rest: 6, inTime: 7, outTime: 8,
-         lateIn: 9, lateReason: 10, earlyOut: 12, earlyReason: 13 },
-    detail: (r, c, t) => {
-      const p = [];
-      if (r[c.inTime - 1] || r[c.outTime - 1]) p.push('出勤 ' + t(r[c.inTime - 1]) + ' / 退勤 ' + t(r[c.outTime - 1]));
-      if (r[c.lateIn - 1]) p.push('遅刻 出勤 ' + t(r[c.lateIn - 1]) + ' ' + (r[c.lateReason - 1] || ''));
-      if (r[c.earlyOut - 1]) p.push('退勤 ' + t(r[c.earlyOut - 1]) + ' ' + (r[c.earlyReason - 1] || ''));
-      if (r[c.rest - 1]) p.push('休憩 ' + r[c.rest - 1]);
-      return p;
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  const LIFF_ID = '2011627592-q2CYZ82u';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
+
+  const list = document.getElementById('list');
+  const show = (text) => { list.innerHTML = ''; const d = document.createElement('div'); d.className = 'msg'; d.textContent = text; list.appendChild(d); };
+
+  function badgeClass(s) {
+    if (/済|完了/.test(s) && !/未/.test(s)) return 'ok';
+    if (/確認中|申請済|未確認/.test(s)) return 'wait';
+    return '';
+  }
+
+  function render(items) {
+    if (!items.length) { show('申請はまだありません'); return; }
+    list.innerHTML = '';
+    items.forEach(it => {
+      const el = document.createElement('div'); el.className = 'item';
+      const row = document.createElement('div'); row.className = 'row';
+      const left = document.createElement('div');
+      const title = document.createElement('div'); title.className = 'title'; title.textContent = it.sentAt + '\u3000' + it.type;
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = it.kind + ' ・ 対象日:' + it.targetDate;
+      left.append(title, meta);
+      const badge = document.createElement('span'); badge.className = 'badge ' + badgeClass(it.status); badge.textContent = it.status;
+      row.append(left, badge); el.appendChild(row);
+      if (it.detail) { const d = document.createElement('div'); d.className = 'detail'; d.textContent = it.detail; el.appendChild(d); }
+      list.appendChild(el);
+    });
+  }
+
+  (async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // プリフライトを避ける
+        body: JSON.stringify({ idToken: liff.getIDToken() })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        show(data.error === 'not_registered'
+          ? 'スタッフ名簿にあなたのLINEが登録されていません。管理者に連絡してください。'
+          : '読み込めませんでした。LINEを開き直してください。(' + data.error + ')');
+        return;
+      }
+      document.getElementById('who').textContent = data.name + 'さんの申請のみ表示';
+      render(data.items);
+    } catch (e) {
+      show('読み込めませんでした。通信状況を確認して、開き直してください。');
     }
-  },
-  {
-    kind: '勤怠連絡', ssId: () => CFG.KINTAI_SS_ID, sheet: 'フォームの回答 1', firstRow: 2, cols: 11,
-    c: { status: 1, ts: 2, name: 3, date: 4, type: 5, reason: 6, memo: 7,
-         planIn: 8, planOut: 9, inTime: 10, outTime: 11 },
-    detail: (r, c, t) => {
-      const p = [];
-      if (r[c.reason - 1]) p.push('理由:' + r[c.reason - 1]);
-      if (r[c.memo - 1]) p.push('詳細:' + r[c.memo - 1]);
-      if (r[c.planIn - 1] || r[c.planOut - 1]) p.push('予定 ' + t(r[c.planIn - 1]) + ' ~ ' + t(r[c.planOut - 1]));
-      if (r[c.inTime - 1] || r[c.outTime - 1]) p.push('出勤 ' + t(r[c.inTime - 1]) + ' / 退勤 ' + t(r[c.outTime - 1]));
-      return p;
-    }
-  }
-];
-
-function doPost(e) {
-  try {
-    const idToken = JSON.parse(e.postData.contents).idToken;
-    const userId = verifyIdToken_(idToken);
-    const name = findNameByUserId_(userId);
-    if (!name) return json_({ ok: false, error: 'not_registered' });
-    return json_({ ok: true, name: name, items: getHistory_(name) });
-  } catch (err) {
-    return json_({ ok: false, error: String(err.message || err) });
-  }
-}
-
-function verifyIdToken_(idToken) {
-  if (!idToken) throw new Error('no_token');
-  const res = UrlFetchApp.fetch('https://api.line.me/oauth2/v2.1/verify', {
-    method: 'post',
-    payload: { id_token: idToken, client_id: CFG.LINE_LOGIN_CHANNEL_ID },
-    muteHttpExceptions: true
-  });
-  if (res.getResponseCode() !== 200) throw new Error('invalid_token');
-  return JSON.parse(res.getContentText()).sub; // LINEユーザーID
-}
-
-function findNameByUserId_(userId) {
-  const sh = SpreadsheetApp.openById(CFG.KINTAI_SS_ID).getSheetByName(CFG.ROSTER_SHEET);
-  const v = sh.getDataRange().getValues();
-  const iName = v[0].indexOf(CFG.ROSTER_NAME_HEADER);
-  const iId = v[0].indexOf(CFG.ROSTER_LINEID_HEADER);
-  if (iName < 0 || iId < 0) throw new Error('roster_header_missing');
-  for (let r = 1; r < v.length; r++) {
-    if (String(v[r][iId]).trim() === userId) return String(v[r][iName]).trim();
-  }
-  return null;
-}
-
-function getHistory_(name) {
-  const t = (v) => (v instanceof Date) ? Utilities.formatDate(v, 'Asia/Tokyo', 'H:mm') : String(v || '');
-  const d = (v) => (v instanceof Date) ? Utilities.formatDate(v, 'Asia/Tokyo', 'M月d日') : String(v || '');
-  const all = [];
-
-  SOURCES.forEach(src => {
-    const sh = SpreadsheetApp.openById(src.ssId()).getSheetByName(src.sheet);
-    if (!sh) throw new Error('sheet_not_found:' + src.sheet);
-    const n = sh.getLastRow() - src.firstRow + 1;
-    if (n < 1) return;
-    const c = src.c;
-    sh.getRange(src.firstRow, 1, n, src.cols).getValues()
-      .filter(r => String(r[c.name - 1]).trim() === name)
-      .forEach(r => all.push({
-        ts: new Date(r[c.ts - 1]).getTime() || 0,
-        kind: src.kind,
-        status: String(r[c.status - 1] || '未確認'),
-        sentAt: d(r[c.ts - 1]),
-        type: String(r[c.type - 1] || ''),
-        targetDate: d(r[c.date - 1]),
-        detail: src.detail(r, c, t).join('\n')
-      }));
-  });
-
-  return all.sort((a, b) => b.ts - a.ts).slice(0, CFG.MAX_ITEMS);
-}
-
-function json_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+  })();
+</script>
+</body>
+</html>
