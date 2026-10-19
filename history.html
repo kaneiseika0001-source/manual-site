@@ -106,7 +106,7 @@
   kindFilter.addEventListener('change',render); dateFilter.addEventListener('change',render);
 
   async function start() {
-    if (CONFIG.LIFF_ID.includes('ここに') || CONFIG.API_URL.includes('ここに')) { setMessage('LIFF_IDとAPI_URLを設定すると履歴が表示されます。',true); return; }
+    if (CONFIG.LIFF_ID.includes('2011627592-q2CYZ82u') || CONFIG.API_URL.includes('https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec')) { setMessage('LIFF_IDとAPI_URLを設定すると履歴が表示されます。',true); return; }
     try {
       await liff.init({liffId:CONFIG.LIFF_ID});
       if (!liff.isLoggedIn()) { liff.login({redirectUri:location.href}); return; }
