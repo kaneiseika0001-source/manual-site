@@ -41,7 +41,7 @@
   // Google Apps Scriptをウェブアプリとしてデプロイした後、/exec URLを設定してください。
   const CONFIG = {
     LIFF_ID: '2011627592-q2CYZ82u',
-    API_URL: 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbyMuWJob_axbJSAkc0h4p9otsJDfPBRFEr-6HOk9tFgpd4mn4uBmLVE1bmQTG0IFlSxhw/exec'
   };
   const message = document.getElementById('message');
   const list = document.getElementById('list');
@@ -119,6 +119,9 @@
       let result;
       try { result=JSON.parse(responseText); }
       catch (_) {
+        if (responseText.trim()==='OK') {
+          throw new Error('接続先GASは「OK」だけを返しています。申請履歴APIのコードがデプロイされていないか、別のGAS URLを指定しています。doPostが {ok:true, name:name, items:getHistory_(name)} をJSONで返す履歴APIの /exec URLを設定してください。');
+        }
         const preview=responseText.replace(/\s+/g,' ').slice(0,180);
         throw new Error('GASからJSON以外の応答が返りました。ウェブアプリの公開設定を「全員」にし、最新のデプロイURLを設定してください。応答: '+(preview||'（空）'));
       }
