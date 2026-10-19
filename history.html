@@ -115,7 +115,13 @@
       if (!idToken) throw new Error('LINEのIDトークンを取得できませんでした。LIFFの設定を確認してください。');
       const response=await fetch(CONFIG.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({idToken})});
       if (!response.ok) throw new Error('履歴APIに接続できませんでした（HTTP '+response.status+'）。');
-      const result=await response.json();
+      const responseText=await response.text();
+      let result;
+      try { result=JSON.parse(responseText); }
+      catch (_) {
+        const preview=responseText.replace(/\s+/g,' ').slice(0,180);
+        throw new Error('GASからJSON以外の応答が返りました。ウェブアプリの公開設定を「全員」にし、最新のデプロイURLを設定してください。応答: '+(preview||'（空）'));
+      }
       if (result && result.ok===false) throw new Error(result.message||result.error||'履歴を取得できませんでした。');
       allItems=Array.isArray(result)?result:(result.items||result.history||result.data||[]);
       if (!Array.isArray(allItems)) throw new Error('APIの応答形式を確認してください。');
