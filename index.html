@@ -132,6 +132,21 @@
     background: #e6483c; color: #fff; font-size: 10px; font-weight: 800;
     padding: 3px 7px; border-radius: 8px; flex-shrink: 0; letter-spacing: .5px;
   }
+  .cat-search {
+  display: flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 14px; margin: 0 0 12px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+}
+.cat-search input {
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent;
+  font-size: 16px; /* 16px未満だとiPhoneで入力時に画面が拡大されるため */
+  color: var(--text);
+}
+.cat-search .clear {
+  .cat-search input::-webkit-search-cancel-button { display: none; }
+  display: none; width: 24px; height: 24px; line-height: 24px; text-align: center;
+  border-radius: 50%; background: #e5e8f0; color: #6b7280; font-size: 14px; cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -180,6 +195,11 @@
     <div id="categoryResultSection" style="display:none;">
       <div class="section">
         <div class="section-head"><h3 id="categoryResultTitle"></h3></div>
+        <div class="cat-search" id="catSearchBox" style="display:none;">
+  <span>🔍</span>
+  <input id="catSearchInput" type="search" placeholder="品目名で検索" oninput="onCategorySearch()">
+  <span class="clear" id="catSearchClear" onclick="clearCategorySearch()">✕</span>
+</div>
         <div id="categoryResultList"></div>
       </div>
     </div>
@@ -341,16 +361,57 @@
     }).join('');
   }
 
+    const SEARCHABLE_CATEGORIES = ['検品基準']; // 品目検索を出すカテゴリ
+  let currentCategory = '';
+
+  // ひらがな/カタカナ・全角/半角・大文字/小文字・空白の違いを吸収
+  function normalizeText(s) {
+    return String(s || '')
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+      .replace(/\s+/g, '');
+  }
+
+  function renderCategoryItems() {
+    const input = document.getElementById('catSearchInput');
+    const q = normalizeText(input.value);
+    document.getElementById('catSearchClear').style.display = input.value ? 'block' : 'none';
+
+    const list = manuals.filter(m => m.category === currentCategory);
+    const filtered = q ? list.filter(m => normalizeText(m.title).includes(q)) : list;
+
+    let html;
+    if (filtered.length) {
+      html = filtered.map(cardHtml).join('');
+    } else if (q) {
+      html = '<div class="empty">「' + escapeHtml(input.value.trim()) + '」に該当する品目がありません。</div>';
+    } else {
+      html = '<div class="empty">該当するマニュアルがありません。</div>';
+    }
+    document.getElementById('categoryResultList').innerHTML = html;
+  }
+
+  function onCategorySearch() { renderCategoryItems(); }
+
+  function clearCategorySearch() {
+    document.getElementById('catSearchInput').value = '';
+    renderCategoryItems();
+  }
+
   function showCategory(cat) {
-    const filtered = manuals.filter(m => m.category === cat);
+    currentCategory = cat;
     document.getElementById('normalSections').style.display = 'none';
     document.getElementById('categoryResultSection').style.display = 'block';
     document.getElementById('categoryResultTitle').textContent = cat;
-    document.getElementById('categoryResultList').innerHTML = filtered.length
-      ? filtered.map(cardHtml).join('')
-      : '<div class="empty">該当するマニュアルがありません。</div>';
     document.getElementById('searchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
+
+    // 検索ボックスは対象カテゴリのときだけ表示
+    document.getElementById('catSearchInput').value = '';
+    document.getElementById('catSearchBox').style.display =
+      SEARCHABLE_CATEGORIES.includes(cat) ? 'flex' : 'none';
+    renderCategoryItems();
 
     inCategoryView = true;
     document.getElementById('backBtn').classList.add('show');
@@ -363,6 +424,8 @@
     document.getElementById('categoryResultSection').style.display = 'none';
     document.getElementById('searchInput').value = '';
     document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('catSearchInput').value = '';
+    document.getElementById('catSearchBox').style.display = 'none';
 
     inCategoryView = false;
     document.getElementById('backBtn').classList.remove('show');
