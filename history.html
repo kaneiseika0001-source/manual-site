@@ -201,7 +201,7 @@
       const date=timestamp(item) || field(item,['date','対象日','applicationDate','workDate']);
       return (selectedKind==='すべて'||kind===selectedKind) && (!selectedDate||dateKey(date)===selectedDate);
     });
-    if (!shown.length) { setMessage(allItems.length?'条件に合う履歴はありません。':'申請履歴はありません。'); return; }
+    if (!shown.length) { setMessage(allItems.length?'条件に合う履歴はありません。':'申請はありません'); return; }
     message.hidden=true;
     for (const item of shown) {
       const article=document.createElement('article'); article.className='item';
