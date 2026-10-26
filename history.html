@@ -19,6 +19,21 @@
     .status[data-tone="working"]{background:#e1effc;color:#1f6fb2}
     .status[data-tone="approved"]{background:#ececf0;color:#74788c}
     .status[data-tone="rejected"]{background:#fde8e7;color:#a52e2e}
+    .status[data-tone="cancelled"]{background:#e4e4ea;color:#8a8d9b}
+    .item.cancelled{background:#f4f4f6;border-color:#ececf0}
+    .item.cancelled .submitted,.item.cancelled .kind,.item.cancelled .summary{color:#9a9dab}
+    .cancel-area{margin-top:22px}
+    .cancel-btn{display:block;width:100%;height:52px;border:1.5px solid #e3b7b4;border-radius:999px;background:#fff;color:#a52e2e;font:inherit;font-size:1.05rem;font-weight:650;cursor:pointer}
+    .cancel-btn:active{background:#fdf1f0}
+    .cancel-note{margin:0;color:var(--muted);font-size:.92rem;line-height:1.6;text-align:center}
+    .cancel-confirm{padding:16px;border-radius:24px;background:#fdf1f0}
+    .cancel-confirm p{margin:0 0 14px;color:#7b2b2b;font-size:1rem;line-height:1.6}
+    .cancel-confirm p.cancel-error{margin:0 0 12px;color:#b42318;font-size:.92rem}
+    .cancel-actions{display:flex;gap:10px}
+    .cancel-actions button{flex:1;height:48px;border-radius:999px;font:inherit;font-size:1rem;font-weight:650;cursor:pointer}
+    .cancel-no{border:1.5px solid #d6dcd9;background:#fff;color:#3d6962}
+    .cancel-yes{border:0;background:#c0392b;color:#fff}
+    .cancel-actions button:disabled{opacity:.55;cursor:default}
     .status-slot{display:block;width:0;height:0}
     .chevron{width:16px;height:16px;border-right:3px solid var(--green);border-top:3px solid var(--green);transform:rotate(45deg);justify-self:center}.notice{display:flex;align-items:center;justify-content:center;gap:12px;margin:28px 4px 0;padding:15px 18px;border-radius:999px;background:#eff7f3;color:#35695e;text-align:center;font-size:1rem}.notice svg{width:28px;height:28px;flex:none;color:var(--green2)}.notice small{display:block;margin-top:5px;font-size:.76em;color:#6b8f86;line-height:1.4}
     /* 詳細シート */
@@ -73,6 +88,7 @@
     </div>
     <div id="sheetStatus"></div>
     <dl id="sheetRows" class="rows"></dl>
+    <div id="cancelArea" class="cancel-area"></div>
   </div>
 </div>
 
@@ -126,9 +142,10 @@
     if (isNaN(d)) return text(value);
     return new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'long',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);
   }
-  // 未確認・未対応=緑 / 対応中=青 / 確認済・完了=グレー
+  // 未確認・未対応=緑 / 対応中=青 / 確認済・完了=グレー / 取消=薄いグレー
   function statusTone(value) {
     if (!value) return 'none';
+    if (/取消/.test(value)) return 'cancelled';
     if (/未確認|未対応|申請中|受付/.test(value)) return 'pending';
     if (/対応中/.test(value)) return 'working';
     if (/却下|否認|差戻/.test(value)) return 'rejected';
@@ -182,10 +199,73 @@
       row.append(dt,dd); sheetRows.append(row); count++;
     }
     if (!count) { const p=document.createElement('p'); p.className='empty-detail'; p.textContent='表示できる詳細情報はありません。'; sheetRows.append(p); }
+    renderCancelArea(item);
     sheetBackdrop.classList.add('open'); sheetBackdrop.setAttribute('aria-hidden','false');
     document.body.classList.add('locked');
     document.getElementById('sheetClose').focus();
   }
+  /* ---- 申請の取消(確認前だけ) ---- */
+  const CANCEL_ERRORS = {
+    not_cancelable: '確認・対応が始まっているため、取り消せません。管理者に連絡してください。',
+    not_found: '該当の申請が見つかりませんでした。画面を開き直してください。',
+    invalid_token: 'ログインの有効期限が切れました。画面を開き直してください。',
+    not_registered: 'スタッフ名簿に登録がないため、取り消せません。'
+  };
+  async function sendCancel(item) {
+    const idToken=liff.getIDToken();
+    if (!idToken) throw new Error('LINEのIDトークンを取得できませんでした。画面を開き直してください。');
+    const response=await fetch(CONFIG.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({idToken,action:'cancel',kind:item.kind,ts:item.ts})});
+    if (!response.ok) throw new Error('接続できませんでした（HTTP '+response.status+'）。');
+    let result;
+    try { result=JSON.parse(await response.text()); }
+    catch (_) { throw new Error('取り消せませんでした。時間をおいてもう一度お試しください。'); }
+    if (!result || result.ok===false) throw new Error(CANCEL_ERRORS[result && result.error] || '取り消せませんでした。時間をおいてもう一度お試しください。');
+  }
+  function renderCancelArea(item) {
+    const area=document.getElementById('cancelArea');
+    area.replaceChildren();
+    const status=text(field(item,STATUS_KEYS));
+    if (status==='取消') {
+      const p=document.createElement('p'); p.className='cancel-note'; p.textContent='この申請は取り消されています。';
+      area.append(p); return;
+    }
+    if (!item.cancelable) {
+      const p=document.createElement('p'); p.className='cancel-note'; p.textContent='確認・対応が始まっているため、ここからは取り消せません。変更が必要なときは管理者に連絡してください。';
+      area.append(p); return;
+    }
+    showCancelButton(area,item);
+  }
+  function showCancelButton(area,item) {
+    area.replaceChildren();
+    const btn=document.createElement('button'); btn.type='button'; btn.className='cancel-btn'; btn.textContent='この申請を取り消す';
+    btn.addEventListener('click',()=>showCancelConfirm(area,item));
+    area.append(btn);
+  }
+  function showCancelConfirm(area,item) {
+    area.replaceChildren();
+    const box=document.createElement('div'); box.className='cancel-confirm';
+    const msg=document.createElement('p'); msg.textContent='この申請を取り消します。取り消したあとは、ご自身では元に戻せません。よろしいですか？';
+    const err=document.createElement('p'); err.className='cancel-error'; err.hidden=true;
+    const actions=document.createElement('div'); actions.className='cancel-actions';
+    const no=document.createElement('button'); no.type='button'; no.className='cancel-no'; no.textContent='やめる';
+    const yes=document.createElement('button'); yes.type='button'; yes.className='cancel-yes'; yes.textContent='取り消す';
+    no.addEventListener('click',()=>showCancelButton(area,item));
+    yes.addEventListener('click',async()=>{
+      yes.disabled=no.disabled=true; yes.textContent='取り消し中…'; err.hidden=true;
+      try {
+        await sendCancel(item);
+        item.status='取消'; item.cancelable=false;
+        closeDetail(); render();
+      } catch (e) {
+        err.textContent=e.message||'取り消せませんでした。'; err.hidden=false;
+        yes.disabled=no.disabled=false; yes.textContent='取り消す';
+      }
+    });
+    actions.append(no,yes);
+    box.append(msg,err,actions);
+    area.append(box);
+  }
+
   function closeDetail() {
     sheetBackdrop.classList.remove('open'); sheetBackdrop.setAttribute('aria-hidden','true');
     document.body.classList.remove('locked');
@@ -208,6 +288,7 @@
     message.hidden=true;
     for (const item of shown) {
       const article=document.createElement('article'); article.className='item';
+      if (text(field(item,STATUS_KEYS))==='取消') article.classList.add('cancelled');
       article.tabIndex=0; article.setAttribute('role','button'); article.setAttribute('aria-label','申請の詳細を開く');
       const main=document.createElement('div'); main.className='item-main';
       const submitted=document.createElement('p'); submitted.className='submitted'; submitted.textContent=displayTimestamp(item);
