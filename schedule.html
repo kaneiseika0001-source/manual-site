@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>スケジュール</title>
+<style>
+  :root { --bg:#fff; --card:#fff; --text:#1f2a44; --sub:#6b7280; --accent:#3b6fd6; --border:#e7ebf3; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  #app { max-width:480px; margin:0 auto; min-height:100vh; padding:0 16px 40px; }
+  header.top { padding:14px 0 4px; }
+  header.top h1 { font-size:16px; font-weight:700; margin:0; }
+
+  .state { display:none; text-align:center; margin-top:56px; }
+  .state.active { display:block; }
+  .badge { width:72px; height:72px; margin:0 auto 18px; border-radius:50%; display:flex;
+           align-items:center; justify-content:center; font-size:32px; }
+  .state h2 { font-size:17px; font-weight:800; margin:0 0 10px; }
+  .state p { font-size:14px; line-height:1.8; color:var(--sub); margin:0; white-space:pre-line; }
+
+  .note { margin:24px 0 0; padding:14px 16px; border-radius:14px; background:#eef4ff;
+          font-size:13px; color:var(--text); text-align:left; line-height:1.7; }
+  .note b { font-weight:800; }
+  .btn { display:inline-block; margin-top:22px; padding:13px 22px; border-radius:12px;
+         background:var(--card); border:1px solid var(--border); color:var(--accent);
+         font-size:13.5px; font-weight:700; text-decoration:none; cursor:pointer; }
+
+  .spinner { width:28px; height:28px; margin:0 auto 16px; border-radius:50%;
+             border:3px solid var(--border); border-top-color:var(--accent); animation:spin .9s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation:none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top"><h1>スケジュール</h1></header>
+
+  <!-- 読み込み中 / PDFへ移動中 -->
+  <div class="state active" id="st-loading">
+    <div class="spinner"></div>
+    <p id="loadingText">確認しています…</p>
+    <a class="btn" id="pdfFallback" style="display:none;" href="#">開かない場合はこちら</a>
+  </div>
+
+  <!-- 表示できない時間 / まだ準備中 -->
+  <div class="state" id="st-closed">
+    <div class="badge" id="closedIcon" style="background:#fdf1de;">🕒</div>
+    <h2 id="closedTitle">今は表示できない時間です</h2>
+    <p id="closedMsg"></p>
+    <div class="note"><b>表示できる時間</b><br>毎日 5:00〜12:00(当日のスケジュール)</div>
+  </div>
+
+  <!-- 通信エラー -->
+  <div class="state" id="st-error">
+    <div class="badge" style="background:#fbe9e9;">⚠️</div>
+    <h2>読み込めませんでした</h2>
+    <p>電波の良い場所で、もう一度お試しください。</p>
+    <a class="btn" href="#" onclick="load(); return false;">もう一度読み込む</a>
+  </div>
+</div>
+
+<script>
+  // お知らせ用GASのWebアプリURL(ルール・マニュアルと同じもの)。GAS側の doGet ?action=schedule を呼ぶ
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
+
+  function show(id) {
+    document.querySelectorAll('.state').forEach(function (el) { el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+  }
+
+  // JSONP(別ドメインのGASを呼ぶため。マニュアル画面と同じ方式)
+  function jsonp(url, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var cb = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+      var script = document.createElement('script');
+      var timer = setTimeout(function () { cleanup(); reject(new Error('timeout')); }, timeoutMs || 12000);
+      function cleanup() { clearTimeout(timer); delete window[cb]; script.remove(); }
+      window[cb] = function (data) { cleanup(); resolve(data); };
+      script.onerror = function () { cleanup(); reject(new Error('jsonp failed')); };
+      script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + cb;
+      document.body.appendChild(script);
+    });
+  }
+
+  function load() {
+    show('st-loading');
+    document.getElementById('loadingText').textContent = '確認しています…';
+    document.getElementById('pdfFallback').style.display = 'none';
+
+    jsonp(API_URL + '?action=schedule').then(function (res) {
+      if (!res || !res.ok || !res.data) { show('st-error'); return; }
+      var d = res.data; // { type:'pdf', pdfUrl } または { type:'text', text }
+
+      if (d.type === 'pdf' && d.pdfUrl) {
+        // 表示できる時間帯: そのままPDFへ(戻るボタンで、この画面に戻らないよう replace)
+        document.getElementById('loadingText').textContent = 'スケジュールを開いています…';
+        var fb = document.getElementById('pdfFallback');
+        fb.href = d.pdfUrl;
+        fb.style.display = 'inline-block';
+        location.replace(d.pdfUrl);
+        return;
+      }
+
+      // 表示できない時間帯 / PDFがまだ公開されていないとき
+      var text = d.text || '';
+      var isMissing = text.indexOf('まだ公開されていません') >= 0;
+      document.getElementById('closedIcon').textContent = isMissing ? '📄' : '🕒';
+      document.getElementById('closedTitle').textContent =
+        isMissing ? 'スケジュールは準備中です' : '今は表示できない時間です';
+      document.getElementById('closedMsg').textContent = text.replace(/^⚠️\s*/, '');
+      show('st-closed');
+    }).catch(function () { show('st-error'); });
+  }
+
+  load();
+</script>
+</body>
+</html>
