@@ -5,44 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>お知らせ</title>
 <style>
-  :root { --bg:#fff; --card:#fff; --text:#1f2a44; --sub:#6b7280; --accent:#3b6fd6; --border:#e7ebf3; }
+  :root { --bg:#fff; --card:#fff; --text:#1f2a44; --sub:#6b7280; --accent:#3b6fd6; --border:#e7ebf3; --gold:#f5b301; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
          background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
   #app { max-width:480px; margin:0 auto; min-height:100vh; padding-bottom:40px; }
 
-  header.top { display:flex; align-items:center; gap:10px; padding:14px 16px 8px; position:sticky; top:0;
+  /* ページ名はLINEの上部バーに出るので、この画面では「戻る」だけを詳細画面で出す */
+  header.top { display:none; align-items:center; padding:10px 16px 4px; position:sticky; top:0;
                background:var(--bg); z-index:5; }
-  header.top .back { font-size:24px; width:24px; text-align:center; cursor:pointer; visibility:hidden; }
-  header.top .back.show { visibility:visible; }
-  header.top h1 { font-size:16px; font-weight:700; margin:0; }
+  header.top .back { font-size:28px; line-height:1; width:36px; cursor:pointer; }
+  .view#view-list { padding-top:12px; }
 
   .view { display:none; }
   .view.active { display:block; }
+
+  /* 検索・切り替え */
+  .searchbox { display:flex; align-items:center; gap:8px; height:46px; padding:0 14px; margin:4px 16px 10px;
+               background:var(--card); border:1px solid var(--border); border-radius:12px; }
+  .searchbox input { flex:1; min-width:0; border:none; outline:none; background:transparent; font-size:16px; color:var(--text); }
+  .searchbox input::-webkit-search-cancel-button { display:none; }
+  .searchbox .clear { display:none; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%;
+                      background:#e5e8f0; color:#6b7280; font-size:14px; cursor:pointer; }
+  .seg { display:flex; gap:8px; margin:0 16px 14px; }
+  .seg button { flex:1; padding:10px 0; border-radius:12px; border:1px solid var(--border); background:var(--card);
+                color:var(--sub); font-size:13.5px; font-weight:700; cursor:pointer; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
   .section { margin:6px 16px 18px; }
   .section h3 { font-size:15px; font-weight:800; margin:0 2px 10px; }
   .section h3 small { font-size:12px; font-weight:600; color:var(--sub); margin-left:6px; }
+  .sub-label { font-size:12px; font-weight:700; color:var(--sub); margin:14px 2px 8px; }
 
   .card { background:var(--card); border:1px solid var(--border); border-left:4px solid #888;
           border-radius:14px; padding:13px 14px; margin-bottom:10px; cursor:pointer; }
   .card.past { background:#f8f9fc; }
   .card.read { background:#f8f9fc; opacity:.65; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0; }
-  .sub-label { font-size:12px; font-weight:700; color:var(--sub); margin:14px 2px 8px; }
   .meta { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0; }
   .chip { font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:8px; }
   .date { font-size:12px; color:var(--sub); }
   .badge-new { margin-left:auto; background:#e6483c; color:#fff; font-size:10px; font-weight:800;
                padding:3px 7px; border-radius:8px; flex-shrink:0; letter-spacing:.5px; }
-  .card .t { font-size:14.5px; font-weight:800; margin:0 0 4px; line-height:1.5; }
+  .trow { display:flex; align-items:flex-start; gap:8px; }
+  .card .t { flex:1; min-width:0; font-size:14.5px; font-weight:800; margin:0 0 4px; line-height:1.5; }
   .card .pv { font-size:12.5px; color:var(--sub); margin:0; line-height:1.6;
               display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .star { font-size:22px; line-height:1; padding:2px 6px; margin:-2px -6px 0 0; color:#c3c9d6; cursor:pointer; flex-shrink:0; }
+  .star.on { color:var(--gold); }
 
   .toggle { display:block; width:100%; padding:13px; border-radius:12px; background:var(--card);
-            border:1px solid var(--border); color:var(--accent); font-size:13.5px; font-weight:700; cursor:pointer; }
-  #pastList { display:none; margin-top:10px; }
+            border:1px solid var(--border); color:var(--accent); font-size:13.5px; font-weight:700; cursor:pointer; margin-top:6px; }
+  .past-wrap { margin-top:10px; }
 
-  .empty { text-align:center; color:var(--sub); font-size:13px; padding:28px 20px; }
+  .empty { text-align:center; color:var(--sub); font-size:13px; padding:28px 20px; line-height:1.8; white-space:pre-line; }
   .state { text-align:center; margin-top:56px; padding:0 24px; }
   .state p { font-size:14px; color:var(--sub); line-height:1.8; margin:0; }
   .spinner { width:28px; height:28px; margin:0 auto 16px; border-radius:50%;
@@ -55,6 +71,10 @@
   .detail-head { margin:4px 16px 16px; }
   .detail-title { font-size:19px; font-weight:800; margin:12px 0 4px; line-height:1.5; }
   .detail-date { font-size:12px; color:var(--sub); }
+  .fav-btn { display:flex; justify-content:center; align-items:center; gap:6px; width:calc(100% - 32px); margin:0 16px 14px;
+             padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--card);
+             color:var(--sub); font-size:13.5px; font-weight:700; cursor:pointer; }
+  .fav-btn.on { border-color:var(--gold); color:#a77b00; background:#fff9e6; }
   .detail-body { margin:0 16px; background:var(--card); border:1px solid var(--border); border-radius:14px;
                  padding:16px; font-size:14px; line-height:1.9; white-space:pre-wrap; word-break:break-word; }
   .detail-image { margin:16px 16px 0; border-radius:14px; overflow:hidden; }
@@ -68,7 +88,6 @@
 <div id="app">
   <header class="top">
     <span class="back" id="backBtn" onclick="goBack()">‹</span>
-    <h1 id="title">お知らせ</h1>
   </header>
 
   <div class="view active" id="view-loading">
@@ -76,19 +95,21 @@
   </div>
 
   <div class="view" id="view-error">
-    <div class="state"><p id="errText">読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。</p>
+    <div class="state"><p id="errText"></p>
       <a class="btn" href="#" onclick="load(); return false;">もう一度読み込む</a></div>
   </div>
 
   <div class="view" id="view-list">
-    <div class="section">
-      <h3>現在のお知らせ<small id="curCount"></small></h3>
-      <div id="curList"></div>
+    <div class="searchbox">
+      <span>🔍</span>
+      <input id="q" type="search" placeholder="お知らせを検索(タイトル・内容)" oninput="onSearch()">
+      <span class="clear" id="qClear" onclick="clearSearch()">✕</span>
     </div>
-    <div class="section" id="pastSection">
-      <button class="toggle" id="pastBtn" onclick="togglePast()"></button>
-      <div id="pastList"></div>
+    <div class="seg">
+      <button id="segAll" class="on" onclick="setMode('all')">すべて</button>
+      <button id="segFav" onclick="setMode('fav')">⭐ お気に入り</button>
     </div>
+    <div id="listBody"></div>
   </div>
 
   <div class="view" id="view-detail">
@@ -97,6 +118,7 @@
       <div class="detail-title" id="dTitle"></div>
       <div class="detail-date" id="dDate"></div>
     </div>
+    <button class="fav-btn" id="dFav" onclick="toggleDetailFav()"></button>
     <div class="detail-body" id="dBody"></div>
     <div class="detail-image" id="dImage" style="display:none;"></div>
     <div class="detail-actions" id="dActions"></div>
@@ -107,8 +129,10 @@
   // お知らせ用GASのWebアプリURL(ルール・マニュアルと同じもの)
   const API_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
 
-  var byId = {}, savedScroll = 0, pastOpen = false, pastCount = 0;
+  var READ_KEY = 'news_read_v1', FAV_KEY = 'news_fav_v1';
+  var lastCur = [], lastPast = [], reg = [], mode = 'all', query = '', pastOpen = false, savedScroll = 0, curDetail = null;
 
+  /* ---------- 共通 ---------- */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
   function fmt(d) { return d ? String(d).replace(/-/g, '/') : ''; }
@@ -119,9 +143,8 @@
   function show(name) {
     document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
     document.getElementById('view-' + name).classList.add('active');
-    document.getElementById('backBtn').classList.toggle('show', name === 'detail');
+    document.querySelector('header.top').style.display = (name === 'detail') ? 'flex' : 'none';
   }
-
   function jsonp(url, timeoutMs) {
     return new Promise(function (resolve, reject) {
       var cb = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
@@ -135,120 +158,191 @@
     });
   }
 
-  // ---- 既読の記録(この端末のブラウザに保存。開いたお知らせを既読にする) ----
-  var READ_KEY = 'news_read_v1', lastCur = [], lastPast = [];
+  /* ---------- 既読・お気に入りの記録(この端末のブラウザに保存) ---------- */
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   function keyOf(a) { return String(a.title) + '|' + String(a.startAt); }
-  function readMap() {
-    try { return JSON.parse(localStorage.getItem(READ_KEY) || '{}') || {}; } catch (e) { return {}; }
+  function isRead(a) { return !!lsGet(READ_KEY)[keyOf(a)]; }
+  function markRead(a) { var m = lsGet(READ_KEY); m[keyOf(a)] = Date.now(); lsSet(READ_KEY, m); }
+  function snap(a) {
+    return { id:a.id, category:a.category, title:a.title, content:a.content, pdfUrl:a.pdfUrl,
+             imageUrl:a.imageUrl, startAt:a.startAt, endAt:a.endAt };
   }
-  function isRead(a) { return !!readMap()[keyOf(a)]; }
-  function markRead(a) {
-    try { var m = readMap(); m[keyOf(a)] = Date.now(); localStorage.setItem(READ_KEY, JSON.stringify(m)); } catch (e) {}
+  function isFav(a) { return !!lsGet(FAV_KEY)[keyOf(a)]; }
+  function setFav(a, on) {
+    var m = lsGet(FAV_KEY);
+    if (on) m[keyOf(a)] = { at: Date.now(), item: snap(a) }; else delete m[keyOf(a)];
+    lsSet(FAV_KEY, m);
   }
-  function pruneRead(cur, past) {   // 今ないお知らせの記録は消して、保存が増え続けないようにする
-    try {
-      var keep = {}, m = readMap(), out = {};
-      cur.concat(past).forEach(function (a) { keep[keyOf(a)] = true; });
-      Object.keys(m).forEach(function (k) { if (keep[k]) out[k] = m[k]; });
-      localStorage.setItem(READ_KEY, JSON.stringify(out));
-    } catch (e) {}
+  function favCount() { return Object.keys(lsGet(FAV_KEY)).length; }
+
+  // 読み込み後: 今ないお知らせの既読記録は消す。お気に入りは最新の内容で控えを更新する
+  function syncStorage() {
+    var live = {};
+    lastCur.concat(lastPast).forEach(function (a) { live[keyOf(a)] = a; });
+    var rd = lsGet(READ_KEY), nr = {};
+    Object.keys(rd).forEach(function (k) { if (live[k]) nr[k] = rd[k]; });
+    lsSet(READ_KEY, nr);
+    var fv = lsGet(FAV_KEY);
+    Object.keys(fv).forEach(function (k) { if (live[k]) fv[k].item = snap(live[k]); });
+    lsSet(FAV_KEY, fv);
   }
 
-  function renderCurrent() {
-    var unread = lastCur.filter(function (a) { return !isRead(a); });
-    var read = lastCur.filter(function (a) { return isRead(a); });
-    document.getElementById('curCount').textContent = lastCur.length
-      ? lastCur.length + '件' + (unread.length ? '(未読 ' + unread.length + ')' : '') : '';
-    var html = unread.map(function (a) { return card(a, false); }).join('');
-    if (unread.length && read.length) html += '<div class="sub-label">既読</div>';
-    html += read.map(function (a) { return card(a, false); }).join('');
-    document.getElementById('curList').innerHTML = lastCur.length
-      ? html : '<div class="empty">現在公開中のお知らせはありません。</div>';
+  /* ---------- 一覧に出す項目 ---------- */
+  // kind: 'cur'=現在 / 'past'=過去 / 'gone'=お気に入りにだけ残っている(掲載が終わって一覧から消えたもの)
+  function allEntries() {
+    return lastCur.map(function (a) { return { a:a, kind:'cur' }; })
+      .concat(lastPast.map(function (a) { return { a:a, kind:'past' }; }));
+  }
+  function favEntries() {
+    var live = {};
+    lastCur.forEach(function (a) { live[keyOf(a)] = { a:a, kind:'cur' }; });
+    lastPast.forEach(function (a) { live[keyOf(a)] = { a:a, kind:'past' }; });
+    var fv = lsGet(FAV_KEY);
+    return Object.keys(fv).sort(function (x, y) { return fv[y].at - fv[x].at; }).map(function (k) {
+      return live[k] || { a: fv[k].item, kind: 'gone' };
+    });
   }
 
-  function card(a, past) {
-    var c = colorOf(a.category);
-    var read = !past && isRead(a);
-    byId[a.id] = { a: a, past: past };
-    return '<div class="card' + (past ? ' past' : '') + (read ? ' read' : '') + '" style="border-left-color:' + c + '" onclick="openDetail(' + a.id + ')">' +
-      '<div class="meta">' + ((!past && !read) ? '<span class="dot"></span>' : '') + '<span class="chip" style="color:' + c + ';background:' + c + '1f">' + esc(a.category || 'お知らせ') + '</span>' +
-      '<span class="date">' + fmt(a.startAt) + '</span>' +
-      ((a.isNew && !read && !past) ? '<span class="badge-new">NEW</span>' : '') + '</div>' +
-      '<p class="t">' + esc(a.title) + '</p>' +
+  /* ---------- 検索 ---------- */
+  function norm(s) {
+    return String(s || '').normalize('NFKC').toLowerCase()
+      .replace(/[\u30a1-\u30f6]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); })
+      .replace(/\s+/g, '');
+  }
+  function matcher(q) {
+    var terms = q.trim().split(/[\s\u3000]+/).map(norm).filter(Boolean);
+    return function (e) {
+      var hay = norm(e.a.title + ' ' + e.a.category + ' ' + e.a.content);
+      return terms.every(function (t) { return hay.indexOf(t) >= 0; });
+    };
+  }
+  function onSearch() {
+    query = document.getElementById('q').value;
+    document.getElementById('qClear').style.display = query ? 'block' : 'none';
+    renderAll();
+  }
+  function clearSearch() {
+    document.getElementById('q').value = '';
+    onSearch();
+  }
+  function setMode(m) { mode = m; renderAll(); }
+
+  /* ---------- 表示 ---------- */
+  function card(e) {
+    var a = e.a, c = colorOf(a.category), idx = reg.push(e) - 1;
+    var cur = e.kind === 'cur', read = cur && isRead(a), fav = isFav(a);
+    return '<div class="card' + (cur ? '' : ' past') + (read ? ' read' : '') + '" style="border-left-color:' + c + '" onclick="openDetail(' + idx + ')">' +
+      '<div class="meta">' + ((cur && !read) ? '<span class="dot"></span>' : '') +
+      '<span class="chip" style="color:' + c + ';background:' + c + '1f">' + esc(a.category || 'お知らせ') + '</span>' +
+      '<span class="date">' + fmt(a.startAt) + (e.kind === 'gone' ? '(掲載終了)' : '') + '</span>' +
+      ((a.isNew && cur && !read) ? '<span class="badge-new">NEW</span>' : '') + '</div>' +
+      '<div class="trow"><p class="t">' + esc(a.title) + '</p>' +
+      '<span class="star' + (fav ? ' on' : '') + '" onclick="toggleFav(event,' + idx + ')">' + (fav ? '★' : '☆') + '</span></div>' +
       (a.content ? '<p class="pv">' + esc(a.content) + '</p>' : '') + '</div>';
   }
+  function cards(list) { return list.map(card).join(''); }
 
-  function render(data) {
-    byId = {};
-    var cur = data.current || [], past = data.past || [];
-    lastCur = cur; lastPast = past;
-    pruneRead(cur, past);
-    renderCurrent();
+  function renderAll() {
+    reg = [];
+    var n = favCount();
+    document.getElementById('segAll').className = mode === 'all' ? 'on' : '';
+    document.getElementById('segFav').className = mode === 'fav' ? 'on' : '';
+    document.getElementById('segFav').textContent = '⭐ お気に入り' + (n ? '(' + n + ')' : '');
 
-    pastCount = past.length;
-    document.getElementById('pastList').innerHTML = past.map(function (a) { return card(a, true); }).join('');
-    document.getElementById('pastSection').style.display = past.length ? 'block' : 'none';
-    pastOpen = false;
-    document.getElementById('pastList').style.display = 'none';
-    updatePastBtn();
+    var q = query.trim(), html = '';
+    if (q) {
+      var scope = mode === 'fav' ? favEntries() : allEntries();
+      var hit = scope.filter(matcher(q));
+      html = '<div class="section"><h3>検索結果' + (mode === 'fav' ? '(お気に入りの中)' : '') + '<small>' + hit.length + '件</small></h3>' +
+        (hit.length ? cards(hit) : '<div class="empty">「' + esc(q) + '」に該当するお知らせがありません。</div>') + '</div>';
+    } else if (mode === 'fav') {
+      var fl = favEntries();
+      html = '<div class="section"><h3>お気に入り<small>' + fl.length + '件</small></h3>' +
+        (fl.length ? cards(fl) : '<div class="empty">お気に入りはまだありません。\nカードの☆を押すと登録できます。</div>') + '</div>';
+    } else {
+      var cur = lastCur.map(function (a) { return { a:a, kind:'cur' }; });
+      var unread = cur.filter(function (e) { return !isRead(e.a); });
+      var read = cur.filter(function (e) { return isRead(e.a); });
+      html = '<div class="section"><h3>現在のお知らせ<small>' +
+        (cur.length ? cur.length + '件' + (unread.length ? '(未読 ' + unread.length + ')' : '') : '') + '</small></h3>';
+      if (!cur.length) html += '<div class="empty">現在公開中のお知らせはありません。</div>';
+      html += cards(unread);
+      if (unread.length && read.length) html += '<div class="sub-label">既読</div>';
+      html += cards(read) + '</div>';
+      if (lastPast.length) {
+        html += '<div class="section"><button class="toggle" onclick="togglePast()">' +
+          (pastOpen ? '過去のお知らせを閉じる' : '過去のお知らせを見る(' + lastPast.length + '件)') + '</button>' +
+          (pastOpen ? '<div class="past-wrap">' + cards(lastPast.map(function (a) { return { a:a, kind:'past' }; })) + '</div>' : '') + '</div>';
+      }
+    }
+    document.getElementById('listBody').innerHTML = html;
   }
 
-  function updatePastBtn() {
-    document.getElementById('pastBtn').textContent =
-      (pastOpen ? '過去のお知らせを閉じる' : '過去のお知らせを見る(' + pastCount + '件)');
-  }
-  function togglePast() {
-    pastOpen = !pastOpen;
-    document.getElementById('pastList').style.display = pastOpen ? 'block' : 'none';
-    updatePastBtn();
+  function keepScroll(fn) { var y = window.pageYOffset || 0; fn(); window.scrollTo(0, y); }
+  function togglePast() { keepScroll(function () { pastOpen = !pastOpen; renderAll(); }); }
+  function toggleFav(ev, idx) {
+    ev.stopPropagation();
+    var e = reg[idx]; if (!e) return;
+    keepScroll(function () { setFav(e.a, !isFav(e.a)); renderAll(); });
   }
 
-  function openDetail(id) {
-    var o = byId[id]; if (!o) return;
-    var a = o.a, c = colorOf(a.category);
-    if (!o.past) markRead(a);
+  /* ---------- 詳細 ---------- */
+  function updateFavBtn() {
+    var on = isFav(curDetail.a), b = document.getElementById('dFav');
+    b.className = 'fav-btn' + (on ? ' on' : '');
+    b.textContent = on ? '★ お気に入り登録済み(タップで解除)' : '☆ お気に入りに登録する';
+  }
+  function toggleDetailFav() { setFav(curDetail.a, !isFav(curDetail.a)); updateFavBtn(); }
+
+  function openDetail(idx) {
+    var e = reg[idx]; if (!e) return;
+    var a = e.a, c = colorOf(a.category);
+    curDetail = e;
+    if (e.kind === 'cur') markRead(a);
     savedScroll = window.pageYOffset || 0;
+
     var chip = document.getElementById('dChip');
     chip.textContent = a.category || 'お知らせ';
     chip.style.color = c; chip.style.background = c + '1f';
     document.getElementById('dTitle').textContent = a.title;
-    document.getElementById('dDate').textContent = o.past
-      ? '掲載期間: ' + fmt(a.startAt) + ' 〜 ' + fmt(a.endAt)
-      : (a.startAt ? '掲載日: ' + fmt(a.startAt) : '');
+    document.getElementById('dDate').textContent = e.kind === 'cur'
+      ? (a.startAt ? '掲載日: ' + fmt(a.startAt) : '')
+      : '掲載期間: ' + fmt(a.startAt) + (a.endAt ? ' 〜 ' + fmt(a.endAt) : '');
     document.getElementById('dBody').textContent = a.content || '';
     document.getElementById('dBody').style.display = a.content ? 'block' : 'none';
 
     var img = document.getElementById('dImage');
     img.innerHTML = a.imageUrl ? '<img src="' + esc(a.imageUrl) + '" alt="' + esc(a.title) + '">' : '';
     img.style.display = a.imageUrl ? 'block' : 'none';
-
     document.getElementById('dActions').innerHTML = a.pdfUrl
       ? '<a href="' + esc(a.pdfUrl) + '" target="_blank" rel="noopener">📄 PDFを見る</a>' : '';
 
-    document.getElementById('title').textContent = 'お知らせ';
+    updateFavBtn();
     show('detail');
     window.scrollTo(0, 0);
   }
 
   function goBack() {
-    renderCurrent();
+    renderAll();            // 既読にしたものを下へ、お気に入りの変更を反映
     show('list');
     window.scrollTo(0, savedScroll);
   }
 
+  /* ---------- 読み込み ---------- */
+  function fail(html) { document.getElementById('errText').innerHTML = html; show('error'); }
   function load() {
     show('loading');
     jsonp(API_URL + '?action=news').then(function (res) {
-      var msg = '読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。';
-      if (!res || !res.ok || !res.data) { document.getElementById('errText').innerHTML = msg; show('error'); return; }
+      if (!res || !res.ok || !res.data) { fail('読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。'); return; }
       if (!Array.isArray(res.data.current)) {
-        // サーバー(GAS)側が、まだ news の新しい版になっていないとき
-        document.getElementById('errText').innerHTML = 'お知らせの読み込み設定が、まだ新しくなっていません。<br>管理者に連絡してください。';
-        show('error'); return;
+        fail('お知らせの読み込み設定が、まだ新しくなっていません。<br>管理者に連絡してください。'); return;
       }
-      render(res.data);
+      lastCur = res.data.current; lastPast = res.data.past || [];
+      syncStorage();
+      renderAll();
       show('list');
-    }).catch(function () { document.getElementById('errText').innerHTML = '読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。'; show('error'); });
+    }).catch(function () { fail('読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。'); });
   }
 
   load();
