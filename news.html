@@ -71,10 +71,8 @@
   .detail-head { margin:4px 16px 16px; }
   .detail-title { font-size:19px; font-weight:800; margin:12px 0 4px; line-height:1.5; }
   .detail-date { font-size:12px; color:var(--sub); }
-  .fav-btn { display:flex; justify-content:center; align-items:center; gap:6px; width:calc(100% - 32px); margin:0 16px 14px;
-             padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--card);
-             color:var(--sub); font-size:13.5px; font-weight:700; cursor:pointer; }
-  .fav-btn.on { border-color:var(--gold); color:#a77b00; background:#fff9e6; }
+  .drow { display:flex; align-items:center; justify-content:space-between; }
+  .dstar { font-size:28px; margin:-4px -6px 0 0; }
   .detail-body { margin:0 16px; background:var(--card); border:1px solid var(--border); border-radius:14px;
                  padding:16px; font-size:14px; line-height:1.9; white-space:pre-wrap; word-break:break-word; }
   .detail-image { margin:16px 16px 0; border-radius:14px; overflow:hidden; }
@@ -114,11 +112,11 @@
 
   <div class="view" id="view-detail">
     <div class="detail-head">
-      <span class="chip" id="dChip"></span>
+      <div class="drow"><span class="chip" id="dChip"></span>
+        <span class="star dstar" id="dFav" onclick="toggleDetailFav()">☆</span></div>
       <div class="detail-title" id="dTitle"></div>
       <div class="detail-date" id="dDate"></div>
     </div>
-    <button class="fav-btn" id="dFav" onclick="toggleDetailFav()"></button>
     <div class="detail-body" id="dBody"></div>
     <div class="detail-image" id="dImage" style="display:none;"></div>
     <div class="detail-actions" id="dActions"></div>
@@ -290,8 +288,8 @@
   /* ---------- 詳細 ---------- */
   function updateFavBtn() {
     var on = isFav(curDetail.a), b = document.getElementById('dFav');
-    b.className = 'fav-btn' + (on ? ' on' : '');
-    b.textContent = on ? '★ お気に入り登録済み(タップで解除)' : '☆ お気に入りに登録する';
+    b.className = 'star dstar' + (on ? ' on' : '');
+    b.textContent = on ? '★' : '☆';
   }
   function toggleDetailFav() { setFav(curDetail.a, !isFav(curDetail.a)); updateFavBtn(); }
 
