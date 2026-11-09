@@ -47,6 +47,16 @@ function callGas(params) {
   });
 }
 
+const CACHE_KEY = 'prefill_name_v1';
+const CACHE_DAYS = 14; // 名簿の名前を変えたとき、最大でこの日数後に反映される
+
+function openForm(form, name) {
+  const url = name
+    ? form.base + '?usp=pp_url&' + form.entry + '=' + encodeURIComponent(name)
+    : form.base;
+  location.replace(url);
+}
+
 (async () => {
   // ?f=kintai を、通常の渡され方と、LIFFが入れ替えた liff.state の両方から探す
   const q = new URLSearchParams(location.search);
@@ -57,17 +67,25 @@ function callGas(params) {
   const form = FORMS[key];
   if (!form) { document.getElementById('msg').textContent = 'フォームが指定されていません'; return; }
 
-  let url = form.base; // 名前が取れなかったときは、名前なしでそのままフォームを開く
+  // 2回目以降: 覚えている名前があれば、GASを呼ばずにすぐ開く
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (c && c.name && (Date.now() - c.t) < CACHE_DAYS * 86400000) {
+      openForm(form, c.name);
+      return;
+    }
+  } catch (e) {}
+
+  // 初回: 名簿から名前を調べて、覚えておく
+  let name = '';
   try {
     await withTimeout(liff.init({ liffId: LIFF_ID }), 8000);
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const data = await callGas({ action: 'name', token: liff.getAccessToken() });
     if (data && data.ok && data.name) {
-      url = form.base + '?usp=pp_url&' + form.entry + '=' + encodeURIComponent(data.name);
+      name = data.name;
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ name: name, t: Date.now() })); } catch (e) {}
     }
   } catch (e) { /* 失敗しても名前なしでフォームは開く */ }
-  location.replace(url);
+  openForm(form, name);
 })();
-</script>
-</body>
-</html>
