@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<p id="msg">読み込み中… (確認用 v3)</p>
+<p id="msg">フォームを開いています…</p>
 <script>
 const LIFF_ID = '2011627592-CPMcSlWW';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
@@ -26,14 +26,10 @@ const FORMS = {
   }
 };
 
-const msgEl = document.getElementById('msg');
-function show(t) { msgEl.textContent = t; }
-window.onerror = function (m) { show('エラー: ' + m); };
-
-function withTimeout(promise, ms, label) {
+function withTimeout(promise, ms) {
   return Promise.race([
     promise,
-    new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' が' + (ms / 1000) + '秒たっても終わりません')), ms))
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
   ]);
 }
 
@@ -42,44 +38,35 @@ function callGas(params) {
   return new Promise((resolve, reject) => {
     const cb = 'cb_' + Date.now();
     const script = document.createElement('script');
-    const timer = setTimeout(() => { cleanup(); reject(new Error('GASからの応答がありません(8秒)')); }, 8000);
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 6000);
     function cleanup() { clearTimeout(timer); delete window[cb]; script.remove(); }
     window[cb] = data => { cleanup(); resolve(data); };
-    script.onerror = () => { cleanup(); reject(new Error('GASの読み込みに失敗しました')); };
+    script.onerror = () => { cleanup(); reject(new Error('load error')); };
     script.src = GAS_URL + '?' + new URLSearchParams(Object.assign({ callback: cb }, params));
     document.body.appendChild(script);
   });
 }
 
 (async () => {
-  try {
-    show('1/4 LINEに接続中…');
-    await withTimeout(liff.init({ liffId: LIFF_ID }), 8000, 'LINEへの接続');
-
-    // ?f=kintai を、通常の渡され方と、LIFFが入れ替えた liff.state の両方から探す
-    const q = new URLSearchParams(location.search);
-    let key = q.get('f');
-    if (!key && q.get('liff.state')) {
-      key = new URLSearchParams(q.get('liff.state').replace(/^\//, '').replace(/^\?/, '')).get('f');
-    }
-    const form = FORMS[key];
-    if (!form) { show('フォームが指定されていません(f=' + key + ')'); return; }
-
-    show('2/4 ログイン確認中…');
-    if (!liff.isLoggedIn()) { show('ログインが必要です。LINEのトークからリンクを開いてください'); return; }
-
-    show('3/4 名前を調べています…');
-    const data = await callGas({ action: 'name', token: liff.getAccessToken() });
-
-    if (data && data.ok && data.name) {
-      show('4/4 ' + data.name + ' さんでフォームを開きます');
-      setTimeout(() => location.replace(form.base + '?usp=pp_url&' + form.entry + '=' + encodeURIComponent(data.name)), 1500);
-    } else {
-      show('名前が見つかりませんでした。結果: ' + JSON.stringify(data));
-    }
-  } catch (e) {
-    show('エラー: ' + e.message);
+  // ?f=kintai を、通常の渡され方と、LIFFが入れ替えた liff.state の両方から探す
+  const q = new URLSearchParams(location.search);
+  let key = q.get('f');
+  if (!key && q.get('liff.state')) {
+    key = new URLSearchParams(q.get('liff.state').replace(/^\//, '').replace(/^\?/, '')).get('f');
   }
+  const form = FORMS[key];
+  if (!form) { document.getElementById('msg').textContent = 'フォームが指定されていません'; return; }
+
+  let url = form.base; // 名前が取れなかったときは、名前なしでそのままフォームを開く
+  try {
+    await withTimeout(liff.init({ liffId: LIFF_ID }), 8000);
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const data = await callGas({ action: 'name', token: liff.getAccessToken() });
+    if (data && data.ok && data.name) {
+      url = form.base + '?usp=pp_url&' + form.entry + '=' + encodeURIComponent(data.name);
+    }
+  } catch (e) { /* 失敗しても名前なしでフォームは開く */ }
+  location.replace(url);
 })();
 </script>
 </body>
