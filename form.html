@@ -108,8 +108,8 @@ function showBlocked(title, bodyHtml) {
   try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
 
   if (data && data.reason === 'inactive') {
-    showBlocked('申請できません',
-      '<p>在籍が確認できないため、この申請はできません。<br>心当たりがある場合は、管理者へご連絡ください。</p>');
+    showBlocked('在籍が確認できないため<br>申請できません',
+      '<p>フォームを閉じてください。</p>');
     return;
   }
   if (data && data.reason === 'unregistered') {
