@@ -13,7 +13,7 @@
 <p>フォームを開いています…</p>
 <script>
 const LIFF_ID = '2011627592-CPMcSlWW';
-const GAS_URL = 'https://liff.line.me/2011627592-CPMcSlWW';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
 
 const FORMS = {
   kintai: {
