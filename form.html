@@ -41,13 +41,25 @@ function callGas(params) {
 }
 
 (async () => {
-  const key = new URLSearchParams(location.search).get('f');
+  try {
+    await liff.init({ liffId: LIFF_ID });
+  } catch (e) {
+    document.body.innerHTML = '<p>LINEから開いてください</p>';
+    return;
+  }
+
+  // ?f=kintai を、通常の渡され方と、LIFFが入れ替えた liff.state の両方から探す
+  const q = new URLSearchParams(location.search);
+  let key = q.get('f');
+  if (!key && q.get('liff.state')) {
+    key = new URLSearchParams(q.get('liff.state').replace(/^\//, '')).get('f');
+  }
+
   const form = FORMS[key];
   if (!form) { document.body.innerHTML = '<p>フォームが指定されていません</p>'; return; }
 
   let url = form.base; // 名前が取れなかったときは、名前なしでそのまま開く
   try {
-    await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const data = await callGas({ action: 'name', token: liff.getAccessToken() });
     if (data && data.ok && data.name) {
@@ -56,6 +68,3 @@ function callGas(params) {
   } catch (e) { /* 失敗しても名前なしでフォームは開く */ }
   location.replace(url);
 })();
-</script>
-</body>
-</html>
