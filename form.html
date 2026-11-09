@@ -6,11 +6,17 @@
 <title>フォームを開いています</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-  body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555;text-align:center;padding:0 16px}
+  body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#444;text-align:center;padding:0 20px;box-sizing:border-box}
+  .box{max-width:360px}
+  h1{font-size:18px;margin:0 0 14px}
+  p{font-size:15px;line-height:1.7;margin:0 0 12px}
+  .how{background:#f3f6f4;border-radius:10px;padding:12px 14px;text-align:left;font-size:14px;line-height:1.8}
+  .how b{font-size:16px}
+  button{margin-top:16px;padding:12px 28px;border:0;border-radius:24px;background:#06c755;color:#fff;font-size:15px;cursor:pointer}
 </style>
 </head>
 <body>
-<p id="msg">フォームを開いています…</p>
+<div class="box" id="box"><p>フォームを開いています…</p></div>
 <script>
 const LIFF_ID = '2011627592-CPMcSlWW';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzWeTxLPpf93T90hndtyNa64LnxBixU4aDj18Zw9VeUAWY6q0oksia3Fwkud_rgFfqYog/exec';
@@ -25,6 +31,9 @@ const FORMS = {
     entry: 'entry.188643478'
   }
 };
+
+const CACHE_KEY = 'prefill_name_v3';
+const CACHE_DAYS = 1; // 退職などが反映されるまでの最大日数
 
 function withTimeout(promise, ms) {
   return Promise.race([
@@ -47,14 +56,21 @@ function callGas(params) {
   });
 }
 
-const CACHE_KEY = 'prefill_name_v1';
-const CACHE_DAYS = 14; // 名簿の名前を変えたとき、最大でこの日数後に反映される
-
 function openForm(form, name) {
   const url = name
     ? form.base + '?usp=pp_url&' + form.entry + '=' + encodeURIComponent(name)
     : form.base;
   location.replace(url);
+}
+
+function showBlocked(title, bodyHtml) {
+  document.title = title;
+  document.getElementById('box').innerHTML =
+    '<h1>' + title + '</h1>' + bodyHtml +
+    '<button id="closeBtn">閉じる</button>';
+  document.getElementById('closeBtn').onclick = function () {
+    try { liff.closeWindow(); } catch (e) { history.back(); }
+  };
 }
 
 (async () => {
@@ -65,9 +81,9 @@ function openForm(form, name) {
     key = new URLSearchParams(q.get('liff.state').replace(/^\//, '').replace(/^\?/, '')).get('f');
   }
   const form = FORMS[key];
-  if (!form) { document.getElementById('msg').textContent = 'フォームが指定されていません'; return; }
+  if (!form) { document.getElementById('box').innerHTML = '<p>フォームが指定されていません</p>'; return; }
 
-  // 2回目以降: 覚えている名前があれば、GASを呼ばずにすぐ開く
+  // 2回目以降: 在籍が確認できている名前を覚えていれば、すぐ開く
   try {
     const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
     if (c && c.name && (Date.now() - c.t) < CACHE_DAYS * 86400000) {
@@ -76,16 +92,37 @@ function openForm(form, name) {
     }
   } catch (e) {}
 
-  // 初回: 名簿から名前を調べて、覚えておく
-  let name = '';
+  let data = null;
   try {
     await withTimeout(liff.init({ liffId: LIFF_ID }), 8000);
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    const data = await callGas({ action: 'name', token: liff.getAccessToken() });
-    if (data && data.ok && data.name) {
-      name = data.name;
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ name: name, t: Date.now() })); } catch (e) {}
-    }
-  } catch (e) { /* 失敗しても名前なしでフォームは開く */ }
-  openForm(form, name);
+    data = await callGas({ action: 'name', token: liff.getAccessToken() });
+  } catch (e) { /* 調べられなかったときは、名前なしでフォームを開く */ }
+
+  if (data && data.ok && data.name) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ name: data.name, t: Date.now() })); } catch (e) {}
+    openForm(form, data.name);
+    return;
+  }
+
+  try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
+
+  if (data && data.reason === 'inactive') {
+    showBlocked('申請できません',
+      '<p>在籍が確認できないため、この申請はできません。<br>心当たりがある場合は、管理者へご連絡ください。</p>');
+    return;
+  }
+  if (data && data.reason === 'unregistered') {
+    showBlocked('LINEの登録が必要です',
+      '<p>申請の前に、この公式LINEの登録をお願いします。</p>' +
+      '<div class="how">トークで次のように送ってください。<br><b>登録 山田花子</b><br>（「登録」と名前の間に空白を入れてください）</div>' +
+      '<p style="margin-top:12px">登録できたら、もう一度メニューから開いてください。</p>');
+    return;
+  }
+
+  // 通信エラーなど: 申請ができなくならないよう、名前なしで開く
+  openForm(form, '');
 })();
+</script>
+</body>
+</html>
