@@ -81,6 +81,7 @@
   .detail-actions a { display:flex; justify-content:center; padding:13px; border-radius:12px; background:var(--card);
                       border:1px solid var(--border); font-size:13.5px; font-weight:700; color:var(--accent); text-decoration:none; }
 </style>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 <div id="app">
@@ -343,7 +344,7 @@
     }).catch(function () { fail('読み込めませんでした。<br>電波の良い場所で、もう一度お試しください。'); });
   }
 
-  load();
+    liff.init({ liffId: '2011627592-Oq3xeQpK' }).catch(function () {}).then(load);
 </script>
 </body>
 </html>
