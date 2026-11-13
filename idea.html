@@ -97,7 +97,6 @@
 <body>
 <main>
   <section id="formView">
-    <h1>ご意見・改善案</h1>
     <p class="lead">気づいたこと、困っていること、こうなったら良いと思うことを自由に書いてください。</p>
     <p class="lead">頂いたご意見は、より良い職場づくりのために活用させていただきます。</p>
     <p class="lead end">🔒送信内容が周囲の方に知られることはありませんので、安心して率直なご意見をお聞かせください。</p>
@@ -147,7 +146,7 @@
       sendBtn.textContent = "送信する";
       sendBtn.disabled = false;
     } catch (e) {
-      errorEl.textContent = "LINEの準備に失敗しました。LINEアプリから開き直してください。";
+      errorEl.textContent = "LINEの準備に失敗しました。LINEアプリから開き直してください。(" + (e && e.message ? e.message : e) + ")";
       sendBtn.textContent = "送信できません";
     }
   }
