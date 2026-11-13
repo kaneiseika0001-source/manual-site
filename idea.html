@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ご意見・改善案</title>
+<style>
+  :root {
+    --bg: #f6f7f5;
+    --surface: #ffffff;
+    --text: #1f2a24;
+    --sub: #5f6b64;
+    --line: #d5dbd7;
+    --accent: #1f7a4d;
+    --accent-dark: #17613d;
+    --error: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    line-height: 1.7;
+    padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 4px 0 6px; }
+  .lead { font-size: 13px; color: var(--sub); margin: 0 0 10px; }
+  .lead.end { margin-bottom: 20px; }
+  .field { margin-bottom: 22px; }
+  label, .legend { display: block; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: 12px;
+    font: inherit;
+    font-size: 16px; /* iOSの自動ズーム防止 */
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    resize: vertical;
+  }
+  textarea:focus-visible, button:focus-visible, input:focus-visible + span {
+    outline: 3px solid #8fd1ae;
+    outline-offset: 2px;
+  }
+  .choices { display: flex; gap: 10px; }
+  .choices label { flex: 1; margin: 0; font-weight: 400; }
+  .choices input { position: absolute; opacity: 0; }
+  .choices span {
+    display: block;
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .choices input:checked + span {
+    border-color: var(--accent);
+    background: #e7f3ec;
+    color: var(--accent-dark);
+    font-weight: 700;
+  }
+  .notice { font-size: 12px; color: var(--sub); margin: 0 0 18px; }
+  button.send {
+    width: 100%;
+    padding: 14px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 8px;
+  }
+  button.send:active { background: var(--accent-dark); }
+  button.send:disabled { background: #9db8a9; }
+  .error { color: var(--error); font-size: 14px; margin: 12px 0 0; min-height: 1.5em; }
+  .done { text-align: center; padding: 48px 8px; }
+  .done h2 { font-size: 20px; margin: 0 0 8px; }
+  .done p { color: var(--sub); margin: 0 0 24px; }
+  .done button {
+    padding: 12px 28px;
+    font: inherit;
+    font-size: 15px;
+    color: var(--accent-dark);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section id="formView">
+    <h1>ご意見・改善案</h1>
+    <p class="lead">気づいたこと、困っていること、こうなったら良いと思うことを自由に書いてください。</p>
+    <p class="lead">頂いたご意見は、より良い職場づくりのために活用させていただきます。</p>
+    <p class="lead end">🔒送信内容が周囲の方に知られることはありませんので、安心して率直なご意見をお聞かせください。</p>
+
+    <div class="field">
+      <label for="opinion">ご意見・改善案</label>
+      <textarea id="opinion" maxlength="2000" placeholder="例:休憩室の掃除当番を決めてほしい"></textarea>
+    </div>
+
+    <div class="field">
+      <span class="legend">返答</span>
+      <div class="choices">
+        <label><input type="radio" name="reply" value="希望しない" checked><span>希望しない</span></label>
+        <label><input type="radio" name="reply" value="希望する"><span>希望する</span></label>
+      </div>
+    </div>
+
+    <button class="send" id="sendBtn" type="button" disabled>読み込み中…</button>
+    <p class="error" id="error" role="alert"></p>
+  </section>
+
+  <section id="doneView" class="done" hidden>
+    <h2>送信しました</h2>
+    <p>ご意見ありがとうございます。</p>
+    <button id="closeBtn" type="button">閉じる</button>
+  </section>
+</main>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // ▼ ここを書き換える
+  const LIFF_ID = "YOUR_LIFF_ID";
+  const GAS_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
+  // ▲
+
+  const $ = (id) => document.getElementById(id);
+  const sendBtn = $("sendBtn");
+  const errorEl = $("error");
+
+  async function init() {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login({ redirectUri: location.href });
+        return;
+      }
+      sendBtn.textContent = "送信する";
+      sendBtn.disabled = false;
+    } catch (e) {
+      errorEl.textContent = "LINEの準備に失敗しました。LINEアプリから開き直してください。";
+      sendBtn.textContent = "送信できません";
+    }
+  }
+
+  async function send() {
+    errorEl.textContent = "";
+    const opinion = $("opinion").value.trim();
+    if (!opinion) {
+      errorEl.textContent = "ご意見・改善案を入力してください。";
+      $("opinion").focus();
+      return;
+    }
+    const reply = document.querySelector('input[name="reply"]:checked').value;
+    const idToken = liff.getIDToken();
+    if (!idToken) {
+      errorEl.textContent = "ログイン情報が取得できません。開き直してください。";
+      return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "送信中…";
+    try {
+      // text/plain にすると CORS のプリフライトが発生しない
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ idToken, opinion, reply })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "unknown");
+      $("formView").hidden = true;
+      $("doneView").hidden = false;
+      $("opinion").value = "";
+    } catch (e) {
+      errorEl.textContent = "送信に失敗しました。通信状況を確認して、もう一度お試しください。";
+      sendBtn.disabled = false;
+      sendBtn.textContent = "送信する";
+    }
+  }
+
+  sendBtn.addEventListener("click", send);
+  $("closeBtn").addEventListener("click", () => {
+    if (liff.isInClient()) liff.closeWindow();
+    else location.reload();
+  });
+  init();
+</script>
+</body>
+</html>
