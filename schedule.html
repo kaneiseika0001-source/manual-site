@@ -27,6 +27,13 @@
          background:var(--card); border:1px solid var(--border); color:var(--accent);
          font-size:13.5px; font-weight:700; text-decoration:none; cursor:pointer; }
 
+  /* PDFをこの画面の中に表示するエリア */
+  #st-pdf { margin-top:8px; text-align:center; }
+  #pdfFrame { display:block; width:100%; height:calc(100vh - 120px); height:calc(100dvh - 120px);
+              min-height:420px; border:0; border-radius:12px; background:#f3f4f6; }
+  #pdfOpenLink { display:inline-block; margin-top:12px; font-size:12.5px; color:var(--accent);
+                 text-decoration:none; font-weight:600; }
+
   .spinner { width:28px; height:28px; margin:0 auto 16px; border-radius:50%;
              border:3px solid var(--border); border-top-color:var(--accent); animation:spin .9s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -42,6 +49,12 @@
     <div class="spinner"></div>
     <p id="loadingText">確認しています…</p>
     <a class="btn" id="pdfFallback" style="display:none;" href="#">開かない場合はこちら</a>
+  </div>
+
+  <!-- PDFをこの画面の中に表示 -->
+  <div class="state" id="st-pdf">
+    <iframe id="pdfFrame" title="本日のスケジュール" src="about:blank" allow="fullscreen"></iframe>
+    <a id="pdfOpenLink" href="#" target="_blank" rel="noopener">うまく表示されない場合はこちら</a>
   </div>
 
   <!-- 表示できない時間 / まだ準備中 -->
@@ -91,10 +104,17 @@
 
     jsonp(API_URL + '?action=schedule').then(function (res) {
       if (!res || !res.ok || !res.data) { show('st-error'); return; }
-      var d = res.data; // { type:'pdf', pdfUrl } または { type:'text', text }
+      var d = res.data; // { type:'pdf', pdfUrl, previewUrl } または { type:'text', text }
 
       if (d.type === 'pdf' && d.pdfUrl) {
-        // 表示できる時間帯: そのままPDFへ(戻るボタンで、この画面に戻らないよう replace)
+        if (d.previewUrl) {
+          // この画面の中でPDFを表示する(Googleドライブに移動しない)
+          document.getElementById('pdfFrame').src = d.previewUrl;
+          document.getElementById('pdfOpenLink').href = d.pdfUrl;
+          show('st-pdf');
+          return;
+        }
+        // 埋め込み用のURLが無いときだけ、従来どおりPDFへ移動する
         document.getElementById('loadingText').textContent = 'スケジュールを開いています…';
         var fb = document.getElementById('pdfFallback');
         fb.href = d.pdfUrl;
@@ -105,7 +125,7 @@
 
       // 表示できない時間帯 / PDFがまだ公開されていないとき
       var text = d.text || '';
-      var isMissing = text.indexOf('まだ公開されていません') >= 0;
+      var isMissing = text.indexOf('掲示板') >= 0;   // 3:00〜15:00でPDFがまだ無いとき
       document.getElementById('closedIcon').textContent = isMissing ? '📄' : '🕒';
       document.getElementById('closedTitle').textContent =
         isMissing ? 'スケジュールは準備中です' : '今は表示できない時間です';
