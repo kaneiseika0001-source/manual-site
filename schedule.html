@@ -62,7 +62,7 @@
     <div class="badge" id="closedIcon" style="background:#fdf1de;">🕒</div>
     <h2 id="closedTitle">今は表示できない時間です</h2>
     <p id="closedMsg"></p>
-    <div class="note"><b>表示できる時間</b><br>毎日 3:00〜15:00(当日のスケジュール)</div>
+    <div class="note"><b>表示できる時間</b><br>毎日 9:00〜16:00(当日のスケジュール)</div>
   </div>
 
   <!-- 通信エラー -->
@@ -125,7 +125,7 @@
 
       // 表示できない時間帯 / PDFがまだ公開されていないとき
       var text = d.text || '';
-      var isMissing = text.indexOf('掲示板') >= 0;   // 3:00〜15:00でPDFがまだ無いとき
+      var isMissing = text.indexOf('掲示板') >= 0;   // 9:00〜16:00でPDFがまだ無いとき
       document.getElementById('closedIcon').textContent = isMissing ? '📄' : '🕒';
       document.getElementById('closedTitle').textContent =
         isMissing ? 'スケジュールは準備中です' : '今は表示できない時間です';
